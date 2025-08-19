@@ -9,13 +9,11 @@ export const listEventsParams = {
     .describe("Calendar ID, defaults to primary"),
   start: z
     .string()
-    .optional()
     .describe(
       "RFC3339 start datetime (obtain with get_current_time tool if needed)"
     ),
   end: z
     .string()
-    .optional()
     .describe(
       "RFC3339 end datetime (obtain with get_current_time tool if needed)"
     ),
@@ -31,7 +29,11 @@ export const listEventsParams = {
     .describe("IANA timezone; defaults to calendar's timezone"),
 };
 
-export const listEventsSchema = z.object(listEventsParams);
+export const listEventsSchema = z
+  .object(listEventsParams)
+  .refine((data) => data.start && data.end, {
+    message: "Both start and end datetime are required",
+  });
 export type ListEventsInput = z.infer<typeof listEventsSchema>;
 
 export async function listEvents({
@@ -41,6 +43,11 @@ export async function listEvents({
   maxResults,
   timeZone,
 }: ListEventsInput): Promise<any> {
+  // Validate that both start and end are provided
+  if (!start || !end) {
+    throw new Error("Both start and end datetime are required");
+  }
+
   const calendar = getCalendarClient();
 
   // Determine timezone to use
