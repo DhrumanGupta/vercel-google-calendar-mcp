@@ -7,16 +7,18 @@ export const listEventsParams = {
     .string()
     .optional()
     .describe("Calendar ID, defaults to primary"),
-  timeMin: z
+  start: z
     .string()
     .optional()
     .describe(
-      "RFC3339 start datetime; events from this time forward are returned"
+      "RFC3339 start datetime (obtain with get_current_time tool if needed)"
     ),
-  timeMax: z
+  end: z
     .string()
     .optional()
-    .describe("RFC3339 end datetime; events before this time are returned"),
+    .describe(
+      "RFC3339 end datetime (obtain with get_current_time tool if needed)"
+    ),
   maxResults: z
     .number()
     .int()
@@ -34,8 +36,8 @@ export type ListEventsInput = z.infer<typeof listEventsSchema>;
 
 export async function listEvents({
   calendarId = "primary",
-  timeMin,
-  timeMax,
+  start,
+  end,
   maxResults,
   timeZone,
 }: ListEventsInput): Promise<any> {
@@ -52,8 +54,8 @@ export async function listEvents({
     calendarId,
     singleEvents: true,
     orderBy: "startTime",
-    timeMin,
-    timeMax,
+    timeMin: start,
+    timeMax: end,
     maxResults: maxResults ?? undefined,
     timeZone: tz,
   });
