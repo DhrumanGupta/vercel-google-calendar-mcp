@@ -3,6 +3,10 @@ import { verifyToken } from "../../../lib/auth";
 import {
   createEvent,
   createEventParams,
+  currentTimeParams,
+  editEvent,
+  editEventParams,
+  getCurrentTime,
   listEvents,
   listEventsParams,
 } from "../../../lib/calendarTools";
@@ -20,6 +24,18 @@ const baseHandler = createMcpHandler(
       "Create a Google Calendar event",
       createEventParams,
       createEvent
+    );
+    server.tool(
+      "edit_event",
+      "Edit a Google Calendar event",
+      editEventParams,
+      editEvent
+    );
+    server.tool(
+      "get_current_time",
+      "Get current time and timezone",
+      currentTimeParams,
+      getCurrentTime
     );
   },
   {
