@@ -4,42 +4,98 @@ import {
   createEvent,
   createEventParams,
   currentTimeParams,
+  deleteEvent,
+  deleteEventParams,
+  // Legacy compatibility
   editEvent,
   editEventParams,
   getCurrentTime,
+  // Free/busy
+  getFreebusy,
+  getFreebusyParams,
+  // Calendar management
+  listCalendars,
+  listCalendarsParams,
+  // Event management
   listEvents,
   listEventsParams,
-} from "../../../lib/calendarTools";
+  searchEvents,
+  searchEventsParams,
+  updateEvent,
+  updateEventParams,
+} from "../../../lib/calendarTools/index";
 
 const baseHandler = createMcpHandler(
   (server) => {
+    // Calendar management tools
+    server.tool(
+      "list_calendars",
+      "List all available Google Calendars",
+      listCalendarsParams,
+      listCalendars
+    );
+
+    // Event management tools
     server.tool(
       "list_events",
-      "List Google Calendar events",
+      "List Google Calendar events from a specific calendar and date range",
       listEventsParams,
       listEvents
     );
     server.tool(
+      "search_events",
+      "Search for Google Calendar events by text query",
+      searchEventsParams,
+      searchEvents
+    );
+    server.tool(
       "create_event",
-      "Create a Google Calendar event",
+      "Create a new Google Calendar event",
       createEventParams,
       createEvent
     );
     server.tool(
-      "edit_event",
-      "Edit a Google Calendar event",
-      editEventParams,
-      editEvent
+      "update_event",
+      "Update an existing Google Calendar event",
+      updateEventParams,
+      updateEvent
     );
+    server.tool(
+      "delete_event",
+      "Delete a Google Calendar event",
+      deleteEventParams,
+      deleteEvent
+    );
+
+    // Free/busy tools
+    server.tool(
+      "get_freebusy",
+      "Get free/busy information for one or more calendars",
+      getFreebusyParams,
+      getFreebusy
+    );
+
+    // Utility tools
     server.tool(
       "get_current_time",
       "Get current time and timezone",
       currentTimeParams,
       getCurrentTime
     );
+
+    // Legacy compatibility (keep for existing clients)
+    server.tool(
+      "edit_event",
+      "Edit a Google Calendar event (deprecated - use update_event)",
+      editEventParams,
+      editEvent
+    );
   },
   {
-    // Optional server options can be placed here
+    serverInfo: {
+      name: "Google Calendar",
+      version: "0.0.1",
+    },
   },
   {
     // Adapter options
