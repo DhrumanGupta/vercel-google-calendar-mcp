@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { getCalendarClient } from "../googleAuth";
-
-// Common types
-export type McpTextResponse = {
-  content: Array<{ type: "text"; text: string }>;
-};
+import { CalendarFreeBusy, FreeBusyInterval, McpResponse } from "./types";
 
 // -------------------- get_freebusy --------------------
 export const getFreebusyParams = {
@@ -68,7 +64,13 @@ export async function getFreebusy({
   start,
   end,
   timeZone = "UTC",
-}: GetFreebusyInput): Promise<McpTextResponse> {
+}: GetFreebusyInput): Promise<
+  McpResponse<{
+    range: { start: string; end: string };
+    timeZone: string;
+    calendars: CalendarFreeBusy[];
+  }>
+> {
   try {
     const calendar = getCalendarClient();
 
@@ -83,9 +85,10 @@ export async function getFreebusy({
         content: [
           {
             type: "text",
-            text: "Error: No valid calendar IDs provided. Please provide at least one calendar ID.",
+            text: "Error: No valid calendar IDs provided.",
           },
         ],
+        data: { range: { start, end }, timeZone, calendars: [] },
       };
     }
 
@@ -95,9 +98,10 @@ export async function getFreebusy({
         content: [
           {
             type: "text",
-            text: "Error: Too many calendar IDs provided. Maximum is 50 calendars per request.",
+            text: "Error: Too many calendar IDs (max 50).",
           },
         ],
+        data: { range: { start, end }, timeZone, calendars: [] },
       };
     }
 
@@ -120,6 +124,7 @@ export async function getFreebusy({
 
     // Format the results
     const calendarResults: string[] = [];
+    const freebusyData: CalendarFreeBusy[] = [];
 
     calendarIdList.forEach((calendarId) => {
       const calendarData = calendars[calendarId];
@@ -139,7 +144,13 @@ export async function getFreebusy({
         return;
       }
 
-      const busyTimes = calendarData.busy || [];
+      const busyTimes = (calendarData.busy || []).map((b: any) => ({
+        start: b.start,
+        end: b.end,
+      })) as FreeBusyInterval[];
+
+      freebusyData.push({ calendarId, busy: busyTimes });
+
       calendarResults.push(formatCalendarBusyTimes(calendarId, busyTimes));
     });
 
@@ -163,6 +174,11 @@ export async function getFreebusy({
           text,
         },
       ],
+      data: {
+        range: { start, end },
+        timeZone,
+        calendars: freebusyData,
+      },
     };
   } catch (error: any) {
     const errorMsg = error?.message || "Unknown error occurred";

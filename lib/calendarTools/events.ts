@@ -1,10 +1,7 @@
 import { z } from "zod";
 import { getCalendarClient } from "../googleAuth";
-
-// Common types
-export type McpTextResponse = {
-  content: Array<{ type: "text"; text: string }>;
-};
+import { CalendarEvent, McpResponse } from "./types";
+// NOTE: Remove legacy McpTextResponse; use McpResponse<T> for structured responses
 
 // -------------------- Helper functions --------------------
 
@@ -69,7 +66,9 @@ export async function listEvents({
   end,
   maxResults,
   timeZone,
-}: ListEventsInput): Promise<McpTextResponse> {
+}: ListEventsInput): Promise<
+  McpResponse<{ calendarId: string; events: CalendarEvent[] }>
+> {
   try {
     const resolvedCalendarId = resolveCalendarId(calendarId);
     const calendar = getCalendarClient();
@@ -94,16 +93,28 @@ export async function listEvents({
     });
 
     const events = res.data.items ?? [];
-    const text =
-      events.length === 0
-        ? `No events found in calendar '${resolvedCalendarId}' from ${timeMin} to ${timeMax}`
-        : `Found ${
-            events.length
-          } events in calendar '${resolvedCalendarId}':\n\n${events
-            .map(formatEventForDisplay)
-            .join("\n")}`;
+    const simplifiedEvents: CalendarEvent[] = events.map((ev) => ({
+      id: ev.id || "",
+      summary: ev.summary || "",
+      description: ev.description || undefined,
+      start: (ev.start?.dateTime || ev.start?.date) as string,
+      end: (ev.end?.dateTime || ev.end?.date) as string,
+      timeZone: tz,
+      htmlLink: ev.htmlLink || undefined,
+    }));
 
-    return { content: [{ type: "text", text }] };
+    const text =
+      simplifiedEvents.length === 0
+        ? `No events found in calendar '${resolvedCalendarId}' from ${timeMin} to ${timeMax}`
+        : `Found ${simplifiedEvents.length} events in calendar '${resolvedCalendarId}'.`;
+
+    return {
+      content: [{ type: "text", text }],
+      data: {
+        calendarId: resolvedCalendarId,
+        events: simplifiedEvents,
+      },
+    };
   } catch (error: any) {
     const errorMsg = error?.message || "Unknown error occurred";
     if (error?.code === 404) {
@@ -156,7 +167,9 @@ export async function searchEvents({
   query,
   maxResults,
   timeZone,
-}: SearchEventsInput): Promise<McpTextResponse> {
+}: SearchEventsInput): Promise<
+  McpResponse<{ calendarId: string; query: string; events: CalendarEvent[] }>
+> {
   try {
     const resolvedCalendarId = resolveCalendarId(calendarId);
     const calendar = getCalendarClient();
@@ -174,16 +187,29 @@ export async function searchEvents({
     });
 
     const events = res.data.items ?? [];
-    const text =
-      events.length === 0
-        ? `No events found matching query "${query}" in calendar '${resolvedCalendarId}'`
-        : `Found ${
-            events.length
-          } events matching "${query}" in calendar '${resolvedCalendarId}':\n\n${events
-            .map(formatEventForDisplay)
-            .join("\n")}`;
+    const simplifiedEvents: CalendarEvent[] = events.map((ev) => ({
+      id: ev.id || "",
+      summary: ev.summary || "",
+      description: ev.description || undefined,
+      start: (ev.start?.dateTime || ev.start?.date) as string,
+      end: (ev.end?.dateTime || ev.end?.date) as string,
+      timeZone: tz,
+      htmlLink: ev.htmlLink || undefined,
+    }));
 
-    return { content: [{ type: "text", text }] };
+    const text =
+      simplifiedEvents.length === 0
+        ? `No events found matching query "${query}" in calendar '${resolvedCalendarId}'`
+        : `Found ${simplifiedEvents.length} events matching "${query}" in calendar '${resolvedCalendarId}'.`;
+
+    return {
+      content: [{ type: "text", text }],
+      data: {
+        calendarId: resolvedCalendarId,
+        query,
+        events: simplifiedEvents,
+      },
+    };
   } catch (error: any) {
     const errorMsg = error?.message || "Unknown error occurred";
     if (error?.code === 404) {
@@ -245,7 +271,7 @@ export async function createEvent({
   end,
   timeZone,
   attendees,
-}: CreateEventInput): Promise<McpTextResponse> {
+}: CreateEventInput): Promise<McpResponse<CalendarEvent>> {
   try {
     const resolvedCalendarId = resolveCalendarId(calendarId);
     const calendar = getCalendarClient();
@@ -266,14 +292,25 @@ export async function createEvent({
       },
     });
 
-    const eventLink = res.data.htmlLink || res.data.id || "unknown";
+    const createdEvent: CalendarEvent = {
+      id: res.data.id || "",
+      summary: res.data.summary || summary,
+      description: res.data.description || description,
+      start,
+      end,
+      timeZone: tz,
+      htmlLink: res.data.htmlLink || undefined,
+    };
+
+    const eventLink = createdEvent.htmlLink || createdEvent.id;
     return {
       content: [
         {
           type: "text",
-          text: `Event created successfully: "${summary}"\nEvent link: ${eventLink}`,
+          text: `Event created successfully: "${createdEvent.summary}"`,
         },
       ],
+      data: createdEvent,
     };
   } catch (error: any) {
     const errorMsg = error?.message || "Unknown error occurred";
@@ -353,7 +390,7 @@ export async function updateEvent({
   end,
   timeZone,
   attendees,
-}: UpdateEventInput): Promise<McpTextResponse> {
+}: UpdateEventInput): Promise<McpResponse<CalendarEvent>> {
   try {
     const resolvedCalendarId = resolveCalendarId(calendarId);
     const calendar = getCalendarClient();
@@ -380,16 +417,26 @@ export async function updateEvent({
       requestBody,
     });
 
-    const eventLink = res.data.htmlLink || res.data.id || eventId;
+    const updatedEvent: CalendarEvent = {
+      id: res.data.id || eventId,
+      summary: res.data.summary || summary || "",
+      description: res.data.description || description,
+      start: (res.data.start?.dateTime ||
+        res.data.start?.date ||
+        start) as string,
+      end: (res.data.end?.dateTime || res.data.end?.date || end) as string,
+      timeZone: tz,
+      htmlLink: res.data.htmlLink || undefined,
+    };
+
     return {
       content: [
         {
           type: "text",
-          text: `Event updated successfully: "${
-            res.data.summary || summary
-          }"\nEvent link: ${eventLink}`,
+          text: `Event updated successfully: "${updatedEvent.summary}"`,
         },
       ],
+      data: updatedEvent,
     };
   } catch (error: any) {
     const errorMsg = error?.message || "Unknown error occurred";
@@ -432,7 +479,9 @@ export type DeleteEventInput = z.infer<typeof deleteEventSchema>;
 export async function deleteEvent({
   calendarId,
   eventId,
-}: DeleteEventInput): Promise<McpTextResponse> {
+}: DeleteEventInput): Promise<
+  McpResponse<{ calendarId: string; eventId: string; deleted: boolean }>
+> {
   try {
     const resolvedCalendarId = resolveCalendarId(calendarId);
     const calendar = getCalendarClient();
@@ -446,9 +495,10 @@ export async function deleteEvent({
       content: [
         {
           type: "text",
-          text: `Event deleted successfully: ${eventId} from calendar '${resolvedCalendarId}'`,
+          text: `Event deleted successfully: ${eventId}`,
         },
       ],
+      data: { calendarId: resolvedCalendarId, eventId, deleted: true },
     };
   } catch (error: any) {
     const errorMsg = error?.message || "Unknown error occurred";
@@ -479,7 +529,9 @@ export async function deleteEvent({
 // -------------------- get_current_time --------------------
 export const currentTimeParams = {};
 
-export async function getCurrentTime(): Promise<McpTextResponse> {
+export async function getCurrentTime(
+  _: Record<string, never> = {}
+): Promise<McpResponse<{ iso: string; timeZone: string }>> {
   const now = new Date();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -490,5 +542,6 @@ export async function getCurrentTime(): Promise<McpTextResponse> {
         text: `Current time: ${now.toISOString()} (${tz})`,
       },
     ],
+    data: { iso: now.toISOString(), timeZone: tz },
   };
 }

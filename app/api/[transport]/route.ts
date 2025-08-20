@@ -94,7 +94,7 @@ const baseHandler = createMcpHandler(
   {
     serverInfo: {
       name: "Google Calendar",
-      version: "0.0.1",
+      version: "0.0.2",
     },
   },
   {

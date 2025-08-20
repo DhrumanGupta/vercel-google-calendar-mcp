@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { getCalendarClient } from "../googleAuth";
-
-// Common types
-export type McpTextResponse = {
-  content: Array<{ type: "text"; text: string }>;
-};
+import { CalendarListEntry, McpResponse } from "./types";
 
 // -------------------- list_calendars --------------------
 export const listCalendarsParams = {};
@@ -12,7 +8,9 @@ export const listCalendarsParams = {};
 export const listCalendarsSchema = z.object(listCalendarsParams);
 export type ListCalendarsInput = z.infer<typeof listCalendarsSchema>;
 
-export async function listCalendars(): Promise<McpTextResponse> {
+export async function listCalendars(
+  _: Record<string, never> = {}
+): Promise<McpResponse<{ calendars: CalendarListEntry[] }>> {
   try {
     const calendar = getCalendarClient();
 
@@ -31,6 +29,7 @@ export async function listCalendars(): Promise<McpTextResponse> {
             text: "No calendars found in your account.",
           },
         ],
+        data: { calendars: [] },
       };
     }
 
@@ -49,6 +48,15 @@ export async function listCalendars(): Promise<McpTextResponse> {
       calendars.length
     } calendars:\n\n${formattedCalendars.join("\n\n")}`;
 
+    const simplifiedCalendars: CalendarListEntry[] = calendars.map((cal) => ({
+      id: cal.id || "",
+      summary: cal.summary || "Untitled Calendar",
+      description: cal.description || undefined,
+      primary: cal.primary || undefined,
+      accessRole: cal.accessRole || undefined,
+      timeZone: cal.timeZone || undefined,
+    }));
+
     return {
       content: [
         {
@@ -56,6 +64,7 @@ export async function listCalendars(): Promise<McpTextResponse> {
           text,
         },
       ],
+      data: { calendars: simplifiedCalendars },
     };
   } catch (error: any) {
     const errorMsg = error?.message || "Unknown error occurred";

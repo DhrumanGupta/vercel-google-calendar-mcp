@@ -56,7 +56,13 @@ export {
 } from "./freebusy";
 
 // Common types
-export type { McpTextResponse } from "./events";
+export type {
+  CalendarEvent,
+  CalendarFreeBusy,
+  CalendarListEntry,
+  FreeBusyInterval,
+  McpResponse,
+} from "./types";
 
 // Legacy exports for backward compatibility with existing route.ts
 // These map to the new function names
